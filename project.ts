@@ -1,4 +1,5 @@
 import { type Session } from "@supabase/supabase-js";
+import path from "path";
 import { Glob } from "bun";
 
 import config from "./config.json";
@@ -46,9 +47,10 @@ export async function listProjects(session: Session) {
 export type Asset = {
   hash: string;
   data: ArrayBuffer;
+  absolutePath: string;
 };
 
-export async function syncAssets(session: Session) {
+export async function syncAssets(session: Session, directory: string) {
   const projectId = await cwdProjectId();
   const getResponse = await fetch(
     config.backend + "/projects/" + projectId + "/assets",
@@ -68,7 +70,7 @@ export async function syncAssets(session: Session) {
     string,
     string
   >;
-  const localAssets = await readLocalAssets("main.wasm");
+  const localAssets = await readLocalAssets("{main.wasm,*.png}", directory);
 
   const formData = new FormData();
   const hashes: Record<string, string> = {};
@@ -85,7 +87,7 @@ export async function syncAssets(session: Session) {
       continue;
     }
 
-    formData.append(file, Bun.file(file));
+    formData.append(file, Bun.file(asset.absolutePath));
     message += `\n${GREEN}+${RESET} ${file} ${GRAY}${asset.hash}${RESET}`;
     changed = true;
   }
@@ -144,19 +146,25 @@ async function cwdProjectId() {
   return await projectFile.text();
 }
 
-async function readLocalAssets(glob: string): Promise<Record<string, Asset>> {
+async function readLocalAssets(
+  glob: string,
+  dir: string
+): Promise<Record<string, Asset>> {
   const files: Record<string, Asset> = {};
 
   const promises = [];
-  for await (const file of new Glob(glob).scan()) {
+  for await (const file of new Glob(glob).scan(dir)) {
+    const absolutePath = path.resolve(dir, file);
+
     promises.push(
-      Bun.file(file)
+      Bun.file(absolutePath)
         .arrayBuffer()
         .then((arrayBuffer) => {
           const hash = Bun.SHA256.hash(arrayBuffer) as Uint8Array;
           files[file] = {
             hash: Buffer.from(hash).toString("hex"),
             data: arrayBuffer,
+            absolutePath,
           };
         })
     );
