@@ -7,6 +7,7 @@ import { homedir } from "os";
 import config from "./config.json";
 import * as project from "./project.ts";
 import { input } from "./shell.ts";
+import * as machine from "./machine.ts";
 
 const supabase = createClient(config.supabase_url, config.supabase_key, {
   auth: {
@@ -70,12 +71,24 @@ switch (action) {
     await project.syncAssets(session, dir);
     break;
 
+  case "switch":
+    if (process.argv.length !== 5) {
+      console.error("Usage: simulo switch <machine-id> <project-id>");
+      process.exit(1);
+    }
+
+    const machineId = process.argv[3];
+    const projectId = process.argv[4];
+    await machine.setMachineProject(session, machineId, projectId);
+    break;
+
   default:
     console.info(
       "Usage: \n" +
         "simulo init <project-name> - Create a new project within the current directory\n" +
         "simulo ls - List all projects\n" +
-        "simulo sync [directory] - Sync a project with simulo cloud"
+        "simulo sync [directory] - Sync a project with simulo cloud\n" +
+        "simulo switch <machine-id> <project-id> - Switch the running project for a machine"
     );
     process.exit(1);
 }
