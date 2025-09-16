@@ -5,7 +5,13 @@ import { Glob } from "bun";
 import config from "./config.json";
 import { GREEN, RED, RESET, GRAY, input } from "./shell.ts";
 
-const projectFile = Bun.file(".project-id");
+const legacyProjectFile = Bun.file(".project-id");
+const projectFile = Bun.file("simulo.json");
+
+interface ProjectConfig {
+  project_id: string;
+  build_dir?: string | undefined;
+}
 
 export async function createProject(name: string, session: Session) {
   const response = await fetch(config.backend + "/projects", {
@@ -24,7 +30,7 @@ export async function createProject(name: string, session: Session) {
 
   const json = (await response.json()) as { id: number };
 
-  await projectFile.write(json.id.toString());
+  await projectFile.write(JSON.stringify({ project_id: json.id.toString() }));
 }
 
 export async function listProjects(session: Session) {
@@ -50,10 +56,10 @@ export type Asset = {
   absolutePath: string;
 };
 
-export async function syncAssets(session: Session, directory: string) {
-  const projectId = await cwdProjectId();
+export async function syncAssets(session: Session) {
+  const projectConfig = await readSimuloConfig();
   const getResponse = await fetch(
-    config.backend + "/projects/" + projectId + "/assets",
+    config.backend + "/projects/" + projectConfig.project_id + "/assets",
     {
       headers: {
         Authorization: session.access_token,
@@ -70,7 +76,10 @@ export async function syncAssets(session: Session, directory: string) {
     string,
     string
   >;
-  const localAssets = await readLocalAssets("{main.wasm,*.png}", directory);
+  const localAssets = await readLocalAssets(
+    "{main.wasm,*.png}",
+    projectConfig.build_dir || "."
+  );
 
   const formData = new FormData();
   const hashes: Record<string, string> = {};
@@ -119,7 +128,7 @@ export async function syncAssets(session: Session, directory: string) {
 
   process.stdout.write(`Uploading assets...`);
   const uploadResponse = await fetch(
-    config.backend + "/projects/" + projectId + "/assets",
+    config.backend + "/projects/" + projectConfig.project_id + "/assets",
     {
       method: "POST",
       headers: {
@@ -137,13 +146,22 @@ export async function syncAssets(session: Session, directory: string) {
   process.stdout.write("done\n");
 }
 
-async function cwdProjectId() {
-  if (!(await projectFile.exists())) {
-    console.error("This command must be run in a simulo project directory");
-    process.exit(1);
+async function readSimuloConfig(): Promise<ProjectConfig> {
+  if (await projectFile.exists()) {
+    const content = await projectFile.text();
+    return JSON.parse(content);
   }
 
-  return await projectFile.text();
+  if (await legacyProjectFile.exists()) {
+    const legacyId = await legacyProjectFile.text();
+    await projectFile.write(JSON.stringify({ project_id: legacyId }));
+    await Bun.file(".project-id").delete();
+    console.log("Migrated legacy .project-id file to simulo.json");
+    return { project_id: legacyId };
+  }
+
+  console.error("This command must be run in a simulo project directory");
+  process.exit(1);
 }
 
 async function readLocalAssets(

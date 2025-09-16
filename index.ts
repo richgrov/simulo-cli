@@ -67,8 +67,7 @@ switch (action) {
     break;
 
   case "sync":
-    const dir = process.argv[3] || ".";
-    await project.syncAssets(session, dir);
+    await project.syncAssets(session);
     break;
 
   case "switch":
@@ -87,7 +86,7 @@ switch (action) {
       "Usage: \n" +
         "simulo init <project-name> - Create a new project within the current directory\n" +
         "simulo ls - List all projects\n" +
-        "simulo sync [directory] - Sync a project with simulo cloud\n" +
+        "simulo sync - Sync a project with simulo cloud\n" +
         "simulo switch <machine-id> <project-id> - Switch the running project for a machine"
     );
     process.exit(1);
