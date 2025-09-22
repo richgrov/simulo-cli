@@ -1,8 +1,8 @@
 {
   "name": "simulo-cli",
   "module": "index.ts",
+  "version": "0.0.1",
   "type": "module",
-  "private": true,
   "bin": {
     "simulo": "index.ts"
   },
