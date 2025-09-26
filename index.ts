@@ -62,8 +62,12 @@ switch (action) {
     project.createProject(await input("Project name: "), session);
     break;
 
-  case "ls":
+  case "ls-projects":
     project.listProjects(session);
+    break;
+
+  case "ls-machines":
+    machine.listMachines(session);
     break;
 
   case "sync":
@@ -76,8 +80,8 @@ switch (action) {
       process.exit(1);
     }
 
-    const machineId = process.argv[3];
-    const projectId = process.argv[4];
+    const machineId = process.argv[3]!;
+    const projectId = process.argv[4]!;
     await machine.setMachineProject(session, machineId, projectId);
     break;
 
@@ -85,7 +89,8 @@ switch (action) {
     console.info(
       "Usage: \n" +
         "simulo init <project-name> - Create a new project within the current directory\n" +
-        "simulo ls - List all projects\n" +
+        "simulo ls-projects - List all projects\n" +
+        "simulo ls-machines - List all machines\n" +
         "simulo sync - Sync a project with simulo cloud\n" +
         "simulo switch <machine-id> <project-id> - Switch the running project for a machine"
     );
