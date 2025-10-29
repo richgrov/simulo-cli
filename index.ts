@@ -70,6 +70,29 @@ switch (action) {
     machine.listMachines(session);
     break;
 
+  case "dev":
+    let nocalib = false;
+    switch (process.argv.length) {
+      case 3:
+        break;
+
+      case 4:
+        if (process.argv[3] === "--nocalib") {
+          nocalib = true;
+        } else {
+          console.error("Usage: simulo dev [--nocalib]");
+          process.exit(1);
+        }
+        break;
+
+      default:
+        console.error("Usage: simulo dev [--nocalib]");
+        process.exit(1);
+    }
+
+    await project.dev(nocalib);
+    break;
+
   case "sync":
     await project.syncAssets(session);
     break;
@@ -91,6 +114,7 @@ switch (action) {
         "simulo init <project-name> - Create a new project within the current directory\n" +
         "simulo ls-projects - List all projects\n" +
         "simulo ls-machines - List all machines\n" +
+        "simulo dev [--nocalib] - Run the program locally\n" +
         "simulo sync - Sync a project with simulo cloud\n" +
         "simulo switch <machine-id> <project-id> - Switch the running project for a machine"
     );

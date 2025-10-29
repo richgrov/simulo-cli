@@ -10,7 +10,8 @@ const projectFile = Bun.file("simulo.json");
 
 interface ProjectConfig {
   project_id: string;
-  build_dir?: string | undefined;
+  program_path: string;
+  assets_dir: string;
 }
 
 export async function createProject(name: string, session: Session) {
@@ -30,7 +31,13 @@ export async function createProject(name: string, session: Session) {
 
   const json = (await response.json()) as { id: number };
 
-  await projectFile.write(JSON.stringify({ project_id: json.id.toString() }));
+  await projectFile.write(
+    JSON.stringify({
+      project_id: json.id.toString(),
+      program_path: "target/wasm32-wasip1/debug/main.wasm",
+      assets_dir: "assets",
+    })
+  );
 }
 
 export async function listProjects(session: Session) {
@@ -77,9 +84,19 @@ export async function syncAssets(session: Session) {
     string
   >;
   const localAssets = await readLocalAssets(
-    "{main.wasm,*.png}",
-    projectConfig.build_dir || "."
+    "{*.png}",
+    projectConfig.assets_dir
   );
+
+  const programBuffer = await Bun.file(
+    projectConfig.program_path
+  ).arrayBuffer();
+  const programHash = Bun.SHA256.hash(programBuffer) as Uint8Array;
+  localAssets["main.wasm"] = {
+    hash: Buffer.from(programHash).toString("hex"),
+    data: programBuffer,
+    absolutePath: path.resolve(projectConfig.program_path),
+  };
 
   const formData = new FormData();
   const hashes: Record<string, string> = {};
@@ -150,14 +167,6 @@ async function readSimuloConfig(): Promise<ProjectConfig> {
   if (await projectFile.exists()) {
     const content = await projectFile.text();
     return JSON.parse(content);
-  }
-
-  if (await legacyProjectFile.exists()) {
-    const legacyId = await legacyProjectFile.text();
-    await projectFile.write(JSON.stringify({ project_id: legacyId }));
-    await Bun.file(".project-id").delete();
-    console.log("Migrated legacy .project-id file to simulo.json");
-    return { project_id: legacyId };
   }
 
   console.error("This command must be run in a simulo project directory");
