@@ -5,7 +5,6 @@ import { Glob } from "bun";
 import config from "./config.json";
 import { GREEN, RED, RESET, GRAY, input } from "./shell.ts";
 
-const legacyProjectFile = Bun.file(".project-id");
 const projectFile = Bun.file("simulo.json");
 
 interface ProjectConfig {
@@ -199,4 +198,22 @@ async function readLocalAssets(
 
   await Promise.all(promises);
   return Promise.resolve(files);
+}
+
+export async function dev(nocalib: boolean) {
+  const projectConfig = await readSimuloConfig();
+
+  const args = [
+    config.dev_runtime,
+    "MacBook Pro Camera",
+    projectConfig.program_path,
+    projectConfig.assets_dir,
+  ];
+
+  if (nocalib) {
+    args.push("--nocalib");
+  }
+
+  const proc = Bun.spawn(args, { stdout: "inherit", stderr: "inherit" });
+  await proc.exited;
 }
